@@ -3,6 +3,7 @@
 (c) The GRASP/AQUA Project, Glasgow University, 1992-1998
 -}
 
+{-# OPTIONS_GHC -fno-state-hack #-}
 {-# LANGUAGE CPP #-}
 {-# LANGUAGE DeriveFunctor #-}
 {-# LANGUAGE PatternSynonyms #-}
@@ -89,21 +90,18 @@ uniqFromMask mask
        ; return $! mkUnique mask uqNum }
 
 mkSplitUniqSupply c
-  = case ord c `shiftL` uNIQUE_BITS of
-     !mask -> let
-        -- here comes THE MAGIC:
+  = mk_supply
+  where
+     !mask = ord c `shiftL` uNIQUE_BITS
 
+        -- Here comes THE MAGIC:
         -- This is one of the most hammered bits in the whole compiler
-        mk_supply
-          -- NB: Use unsafeInterleaveIO for thread-safety.
-          = unsafeInterleaveIO (
-                genSym      >>= \ u ->
-                mk_supply   >>= \ s1 ->
-                mk_supply   >>= \ s2 ->
-                return (MkSplitUniqSupply (mask .|. u) s1 s2)
-            )
-       in
-       mk_supply
+        -- NB: Use unsafeInterleaveIO for thread-safety.
+     mk_supply = unsafeInterleaveIO $
+                 genSym      >>= \ u ->
+                 mk_supply   >>= \ s1 ->
+                 mk_supply   >>= \ s2 ->
+                 return (MkSplitUniqSupply (mask .|. u) s1 s2)
 
 foreign import ccall unsafe "genSym" genSym :: IO Int
 foreign import ccall unsafe "initGenSym" initUniqSupply :: Int -> Int -> IO ()
