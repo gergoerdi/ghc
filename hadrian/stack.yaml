@@ -2,7 +2,7 @@ resolver: lts-15.5
 
 packages:
 - '.'
-- 'GHC-Cabal'
+- 'patched-deps/Cabal-3.2.0.0'
 
 nix:
    enable: false
