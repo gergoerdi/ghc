@@ -2,6 +2,7 @@ resolver: lts-15.5
 
 packages:
 - '.'
+- 'GHC-Cabal'
 
 nix:
    enable: false

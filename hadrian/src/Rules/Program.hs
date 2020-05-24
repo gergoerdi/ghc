@@ -121,6 +121,9 @@ buildBinary rs bin context@Context {..} = do
     hsObjs  <- hsObjects context
     let binDeps = asmObjs ++ cObjs ++ hsObjs
     need binDeps
+    {-
+      TODO: write stglib
+    -}
     buildWithResources rs $ target context (Ghc LinkHs stage) binDeps [bin]
     synopsis <- pkgSynopsis package
     putSuccess $ renderProgram
