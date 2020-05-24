@@ -1867,7 +1867,7 @@ linkBinary' staticLink dflags o_files dep_packages = do
       , "extra_libs:"         , ppSection extra_libs
       , "other_flags:"        , ppSection other_flags
       , "pkg_lib_paths:"      , ppSection pkg_lib_paths
-      , "dep_packages:"       , ppSection $ map installedUnitIdString dep_packages
+      , "dep_packages:"       , ppSection $ map unitIdString dep_packages
       , "o_files:"            , ppSection o_files
       , "extra_ld_inputs:"    , ppSection [ f | FileOption _ f <- ldInputs dflags ]
       , "pkg_db_paths:"       , ppSection pkgConfPath

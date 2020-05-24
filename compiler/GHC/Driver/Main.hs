@@ -1468,8 +1468,8 @@ outputExternalSTG this_mod stg_binds foreign_stubs0 foreign_files location dflag
   let stgBin      = encode (Stg.cvtModule {-core_binds prepd_binds-} [] [] "stg" modUnitId modName stg_binds foreign_stubs0 foreign_files)
       stg_output  = replaceExtension (ml_hi_file location) (objectSuf dflags ++ "_stgbin")
       stg_output2 = replaceExtension output_filename (objectSuf dflags ++ "_stgbin")
-      modName     = Module.moduleName this_mod
-      modUnitId   = Module.moduleUnitId this_mod
+      modName     = moduleName this_mod
+      modUnitId   = toUnitId $ moduleUnit this_mod
       testPath p  = do
         let d = takeDirectory p
         ok <- doesDirectoryExist d
