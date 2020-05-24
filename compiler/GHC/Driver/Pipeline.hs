@@ -80,6 +80,7 @@ import System.IO
 import Control.Monad
 import qualified Control.Monad.Catch as MC (handle)
 import Data.List        ( isInfixOf, intercalate )
+import Data.Containers.ListUtils (nubOrd)
 import Data.Maybe
 import Data.Version
 import Data.Either      ( partitionEithers )
@@ -1549,6 +1550,11 @@ runPhase (RealPhase MergeForeign) input_fn dflags
      if null foreign_os
        then panic "runPhase(MergeForeign): no foreign objects"
        else do
+         -- gen stub object
+         let (o_base, o_ext)  = splitExtension output_fn
+             stub_output_fn   = o_base ++ "_stub" ++ o_ext
+         liftIO $ joinObjectFiles dflags foreign_os stub_output_fn
+         ----------------
          liftIO $ joinObjectFiles dflags (input_fn : foreign_os) output_fn
          return (RealPhase StopLn, output_fn)
 
@@ -1769,7 +1775,7 @@ linkBinary' staticLink dflags o_files dep_packages = do
     let link = if staticLink
                    then GHC.SysTools.runLibtool
                    else GHC.SysTools.runLink
-    link dflags (
+    let linkOpts = (
                        map GHC.SysTools.Option verbFlags
                       ++ [ GHC.SysTools.Option "-o"
                          , GHC.SysTools.FileOption "" output_fn
@@ -1838,6 +1844,36 @@ linkBinary' staticLink dflags o_files dep_packages = do
                           then [ "-Wl,-dead_strip_dylibs" ]
                           else [])
                     ))
+
+    link dflags linkOpts
+    {-
+      ghc_stgapp:
+      output_fn
+      package_hs_libs
+      extra_libs
+      other_flags
+      pkg_lib_paths
+    -}
+    (package_hs_libs, extra_libs, other_flags) <- getPackageLinkOpts dflags dep_packages
+    pkgIncludePaths <- getPackageIncludePath dflags dep_packages
+    root <- getCurrentDirectory
+
+    pkgConfRefs <- getPackageConfRefs dflags
+    pkgConfPath <- catMaybes <$> mapM (resolvePackageDatabase dflags) pkgConfRefs
+    let ppSection l = unlines ["- " ++ x | x <- nubOrd $ map show l]
+    writeFile (output_fn -<.> ".ghc_stgapp") $ unlines
+      [ "root:"               , ppSection [root]
+      , "package_hs_libs:"    , ppSection package_hs_libs
+      , "extra_libs:"         , ppSection extra_libs
+      , "other_flags:"        , ppSection other_flags
+      , "pkg_lib_paths:"      , ppSection pkg_lib_paths
+      , "dep_packages:"       , ppSection $ map installedUnitIdString dep_packages
+      , "o_files:"            , ppSection o_files
+      , "extra_ld_inputs:"    , ppSection [ f | FileOption _ f <- ldInputs dflags ]
+      , "pkg_db_paths:"       , ppSection pkgConfPath
+      , "pkg_include_paths:"  , ppSection pkgIncludePaths
+      , "ld_command_opts:"    , ppSection $ map showOpt linkOpts
+      ]
 
 exeFileName :: Bool -> DynFlags -> FilePath
 exeFileName staticLink dflags
