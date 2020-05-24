@@ -137,6 +137,7 @@ infixl  1 `setRuleInfo`,
 -- information about the Id.
 data IdDetails
   = VanillaId
+  | FExportedId                 -- ^ The 'Id' is foreign exported so it is visible from C land, must keep it live.
 
   -- | The 'Id' for a record selector
   | RecSelId
@@ -206,6 +207,7 @@ pprIdDetails VanillaId = empty
 pprIdDetails other     = brackets (pp other)
  where
    pp VanillaId               = panic "pprIdDetails"
+   pp FExportedId             = text "ForeignExported"
    pp (DataConWorkId _)       = text "DataCon"
    pp (DataConWrapId _)       = text "DataConWrapper"
    pp (ClassOpId {})          = text "ClassOp"
