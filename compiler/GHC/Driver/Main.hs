@@ -181,6 +181,10 @@ import GHC.Iface.Ext.Types  ( getAsts, hie_asts, hie_module )
 import GHC.Iface.Ext.Binary ( readHieFile, writeHieFile , hie_file_result)
 import GHC.Iface.Ext.Debug  ( diffFile, validateScopes )
 
+import qualified Stg.Convert as Stg
+import qualified Data.ByteString.Lazy as BSL
+import Data.Binary
+
 #include "HsVersions.h"
 
 
@@ -1448,8 +1452,36 @@ hscGenHardCode hsc_env cgguts location output_filename = do
                 <- {-# SCC "codeOutput" #-}
                   codeOutput dflags this_mod output_filename location
                   foreign_stubs foreign_files dependencies rawcmms1
+            -- save stgbin
+            outputExternalSTG this_mod stg_binds foreign_stubs0 foreign_files location dflags output_filename
             return (output_filename, stub_c_exists, foreign_fps, caf_infos)
 
+outputExternalSTG :: Module
+                  -> [StgTopBinding]
+                  -> ForeignStubs
+                  -> [(ForeignSrcLang, FilePath)]
+                  -> ModLocation
+                  -> DynFlags
+                  -> FilePath
+                  -> IO ()
+outputExternalSTG this_mod stg_binds foreign_stubs0 foreign_files location dflags output_filename = do
+  --- save stg ---
+  let stgBin      = encode (Stg.cvtModule {-core_binds prepd_binds-} [] [] "stg" modUnitId modName stg_binds foreign_stubs0 foreign_files)
+      stg_output  = replaceExtension (ml_hi_file location) (objectSuf dflags ++ "_stgbin")
+      stg_output2 = replaceExtension output_filename (objectSuf dflags ++ "_stgbin")
+      modName     = moduleName this_mod
+      modUnitId   = moduleUnitId this_mod
+      testPath p  = do
+        let d = takeDirectory p
+        ok <- doesDirectoryExist d
+        putStrLn $ "path:   " ++ p
+        putStrLn $ "folder: " ++ d ++ if ok then " [exists]" else " [does not exist]"
+
+  --lintStgTopBindings dflags this_mod True "outputExternalSTG" stg_binds
+  --putStrLn "outputExternalSTG"
+  --testPath stg_output
+  --testPath stg_output2
+  BSL.writeFile stg_output stgBin
 
 hscInteractive :: HscEnv
                -> CgGuts

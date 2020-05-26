@@ -2915,6 +2915,7 @@ ppr_types debug type_env
       | otherwise = hasTopUserName id
                     && case idDetails id of
                          VanillaId    -> True
+                         FExportedId  -> True
                          RecSelId {}  -> True
                          ClassOpId {} -> True
                          FCallId {}   -> True
