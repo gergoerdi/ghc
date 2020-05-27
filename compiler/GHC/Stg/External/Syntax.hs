@@ -1,1 +1,1 @@
-../../../../../ghc-grin/external-stg/Stg/Syntax.hs
+../../../../../external-stg/lib/Stg/Syntax.hs
