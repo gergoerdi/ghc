@@ -3572,6 +3572,8 @@ fFlagsDeps = [
   flagSpec "loopification"                    Opt_Loopification,
   flagSpec "block-layout-cfg"                 Opt_CfgBlocklayout,
   flagSpec "block-layout-weightless"          Opt_WeightlessBlocklayout,
+  flagSpec "no-stgapp"                        Opt_NoStgapp,
+  flagSpec "no-stgbin"                        Opt_NoStgbin,
   flagSpec "omit-interface-pragmas"           Opt_OmitInterfacePragmas,
   flagSpec "omit-yields"                      Opt_OmitYields,
   flagSpec "optimal-applicative-do"           Opt_OptimalApplicativeDo,

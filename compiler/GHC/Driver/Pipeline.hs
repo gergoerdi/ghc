@@ -1843,34 +1843,35 @@ linkBinary' staticLink dflags o_files dep_packages = do
                           else [])
                     ))
     link dflags linkOpts
-    {-
-      ghc_stgapp:
-      output_fn
-      package_hs_libs
-      extra_libs
-      other_flags
-      pkg_lib_paths
-    -}
-    (package_hs_libs, extra_libs, other_flags) <- getPackageLinkOpts dflags dep_packages
-    pkgIncludePaths <- getPackageIncludePath dflags dep_packages
-    root <- getCurrentDirectory
+    unless (gopt Opt_NoStgapp dflags) $ do
+      {-
+        ghc_stgapp:
+        output_fn
+        package_hs_libs
+        extra_libs
+        other_flags
+        pkg_lib_paths
+      -}
+      (package_hs_libs, extra_libs, other_flags) <- getPackageLinkOpts dflags dep_packages
+      pkgIncludePaths <- getPackageIncludePath dflags dep_packages
+      root <- getCurrentDirectory
 
-    pkgConfRefs <- getPackageConfRefs dflags
-    pkgConfPath <- catMaybes <$> mapM (resolvePackageDatabase dflags) pkgConfRefs
-    let ppSection l = unlines ["- " ++ x | x <- nubOrd $ map show l]
-    writeFile (output_fn -<.> ".ghc_stgapp") $ unlines
-      [ "root:"               , ppSection [root]
-      , "package_hs_libs:"    , ppSection package_hs_libs
-      , "extra_libs:"         , ppSection extra_libs
-      , "other_flags:"        , ppSection other_flags
-      , "pkg_lib_paths:"      , ppSection pkg_lib_paths
-      , "dep_packages:"       , ppSection $ map unitIdString dep_packages
-      , "o_files:"            , ppSection o_files
-      , "extra_ld_inputs:"    , ppSection [ f | FileOption _ f <- ldInputs dflags ]
-      , "pkg_db_paths:"       , ppSection pkgConfPath
-      , "pkg_include_paths:"  , ppSection pkgIncludePaths
-      , "ld_command_opts:"    , ppSection $ map showOpt linkOpts
-      ]
+      pkgConfRefs <- getPackageConfRefs dflags
+      pkgConfPath <- catMaybes <$> mapM (resolvePackageDatabase dflags) pkgConfRefs
+      let ppSection l = unlines ["- " ++ x | x <- nubOrd $ map show l]
+      writeFile (output_fn -<.> ".ghc_stgapp") $ unlines
+        [ "root:"               , ppSection [root]
+        , "package_hs_libs:"    , ppSection package_hs_libs
+        , "extra_libs:"         , ppSection extra_libs
+        , "other_flags:"        , ppSection other_flags
+        , "pkg_lib_paths:"      , ppSection pkg_lib_paths
+        , "dep_packages:"       , ppSection $ map installedUnitIdString dep_packages
+        , "o_files:"            , ppSection o_files
+        , "extra_ld_inputs:"    , ppSection [ f | FileOption _ f <- ldInputs dflags ]
+        , "pkg_db_paths:"       , ppSection pkgConfPath
+        , "pkg_include_paths:"  , ppSection pkgIncludePaths
+        , "ld_command_opts:"    , ppSection $ map showOpt linkOpts
+        ]
 
 
 exeFileName :: Bool -> DynFlags -> FilePath

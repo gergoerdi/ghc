@@ -181,7 +181,7 @@ import GHC.Iface.Ext.Types  ( getAsts, hie_asts, hie_module )
 import GHC.Iface.Ext.Binary ( readHieFile, writeHieFile , hie_file_result)
 import GHC.Iface.Ext.Debug  ( diffFile, validateScopes )
 
-import qualified Stg.Convert as Stg
+import qualified GHC.Stg.External.Convert as Stg
 import qualified Data.ByteString.Lazy as BSL
 import Data.Binary
 
@@ -1453,7 +1453,8 @@ hscGenHardCode hsc_env cgguts location output_filename = do
                   codeOutput dflags this_mod output_filename location
                   foreign_stubs foreign_files dependencies rawcmms1
             -- save stgbin
-            outputExternalSTG this_mod stg_binds foreign_stubs0 foreign_files location dflags output_filename
+            unless (gopt Opt_NoStgbin dflags) $ do
+              outputExternalSTG this_mod stg_binds foreign_stubs0 foreign_files location dflags output_filename
             return (output_filename, stub_c_exists, foreign_fps, caf_infos)
 
 outputExternalSTG :: Module

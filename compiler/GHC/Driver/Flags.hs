@@ -208,6 +208,10 @@ data GeneralFlag
    | Opt_WriteInterface -- forces .hi files to be written even with -fno-code
    | Opt_WriteHie -- generate .hie files
 
+   -- Whole Program Compiler
+   | Opt_NoStgbin
+   | Opt_NoStgapp
+
    -- profiling opts
    | Opt_AutoSccsOnIndividualCafs
    | Opt_ProfCountEntries
