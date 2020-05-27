@@ -55,6 +55,7 @@ _build
 */ghc-stage1
 .shake.*
 .hadrian_ghci
+hadrian/stack.yaml.lock
 
 # -----------------------------------------------------------------------------
 # Ignore any overlapped darcs repos and back up files
