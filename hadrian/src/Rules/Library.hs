@@ -48,14 +48,14 @@ registerStaticLib root archivePath = do
 writeStgLib :: Context -> FilePath -> Action ()
 writeStgLib context@Context{..} archivePath = do
   ContextData{..} <- interpretInContext context (getContextData id)
-  let stgExtension = osuf way ++ "_stgbin"
-      objExtension = osuf way
+  let modpakExtension = osuf way ++ "_modpak"
+      objExtension    = osuf way
 
   nonHsObjs <- nonHsObjects context
   hsObjs <- hsObjects context
   let cLikeFiles  = asmSrcs ++ cSrcs ++ cmmSrcs
       cObjs       = nonHsObjs
-      hStgbins    = [m -<.> stgExtension | m <- hsObjs]
+      modpaks     = [m -<.> modpakExtension | m <- hsObjs]
 
   let ppSection l = unlines ["- " ++ show x | x <- l]
       stglib = unlines
@@ -78,7 +78,7 @@ writeStgLib context@Context{..} archivePath = do
         -- HS dependencies
         , "componentPackageDeps:" , ppSection dependencies
         -- HS object origins
-        , "hStgbins:"     , ppSection hStgbins
+        , "modpaks:"      , ppSection modpaks
         -- HS modules
         , "modules:"      , ppSection $ modules -- HINT: contains the other modules also
         ]
