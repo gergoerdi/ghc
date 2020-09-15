@@ -181,9 +181,17 @@ import GHC.Iface.Ext.Types  ( getAsts, hie_asts, hie_module )
 import GHC.Iface.Ext.Binary ( readHieFile, writeHieFile , hie_file_result)
 import GHC.Iface.Ext.Debug  ( diffFile, validateScopes )
 
+-- for external stg
 import qualified GHC.Stg.External.Convert as Stg
+import qualified Data.ByteString as BS
 import qualified Data.ByteString.Lazy as BSL
+import qualified Data.ByteString.Lazy.Char8 as BSL8
 import Data.Binary
+
+-- for .modpak
+import GHC.SysTools.FileCleanup
+import GHC.SysTools.Process
+import GHC.Utils.CliOption
 
 #include "HsVersions.h"
 
@@ -1454,35 +1462,45 @@ hscGenHardCode hsc_env cgguts location output_filename = do
                   foreign_stubs foreign_files dependencies rawcmms1
             -- save stgbin
             unless (gopt Opt_NoStgbin dflags) $ do
-              outputExternalSTG this_mod stg_binds foreign_stubs0 foreign_files location dflags output_filename
+              outputModPak this_mod stg_binds foreign_stubs0 foreign_files location dflags output_filename
             return (output_filename, stub_c_exists, foreign_fps, caf_infos)
 
-outputExternalSTG :: Module
-                  -> [StgTopBinding]
-                  -> ForeignStubs
-                  -> [(ForeignSrcLang, FilePath)]
-                  -> ModLocation
-                  -> DynFlags
-                  -> FilePath
-                  -> IO ()
-outputExternalSTG this_mod stg_binds foreign_stubs0 foreign_files location dflags output_filename = do
+outputModPak
+  :: Module
+  -> [StgTopBinding]
+  -> ForeignStubs
+  -> [(ForeignSrcLang, FilePath)]
+  -> ModLocation
+  -> DynFlags
+  -> FilePath
+  -> IO ()
+outputModPak this_mod stg_binds foreign_stubs0 foreign_files location dflags output_filename = do
+  --- load modules haskell source code ---
+  hsSource <- sequence (BS.readFile <$> ml_hs_file location)
+
   --- save stg ---
-  let stgBin      = encode (Stg.cvtModule {-core_binds prepd_binds-} [] [] "stg" modUnitId modName stg_binds foreign_stubs0 foreign_files)
-      stg_output  = replaceExtension (ml_hi_file location) (objectSuf dflags ++ "_stgbin")
-      stg_output2 = replaceExtension output_filename (objectSuf dflags ++ "_stgbin")
+  let stgBin      = encode (Stg.cvtModule "stg" modUnitId modName stg_binds foreign_stubs0 foreign_files)
+      modpak_output = replaceExtension (ml_hi_file location) (objectSuf dflags ++ "_modpak")
       modName     = moduleName this_mod
       modUnitId   = moduleUnitId this_mod
-      testPath p  = do
-        let d = takeDirectory p
-        ok <- doesDirectoryExist d
-        putStrLn $ "path:   " ++ p
-        putStrLn $ "folder: " ++ d ++ if ok then " [exists]" else " [does not exist]"
 
-  --lintStgTopBindings dflags this_mod True "outputExternalSTG" stg_binds
-  --putStrLn "outputExternalSTG"
-  --testPath stg_output
-  --testPath stg_output2
-  BSL.writeFile stg_output stgBin
+  -- stgbin
+  stgbinFile <- newTempName dflags TFL_CurrentModule (objectSuf dflags ++ "_stgbin")
+  BSL.writeFile stgbinFile stgBin
+
+  -- ghc stg pretty printed code
+  ghcstgFile <- newTempName dflags TFL_CurrentModule (objectSuf dflags ++ "_ghcstg")
+  BSL.writeFile ghcstgFile . BSL8.pack $ showSDoc dflags $ pprStgTopBindings stg_binds
+
+  runSomething dflags "create .modpak" "mkmodpak" $
+    [ FileOption "--modpakname=" modpak_output
+    , FileOption "--stgbin=" stgbinFile
+    , FileOption "--ghcstg=" ghcstgFile
+    ] ++
+    (case ml_hs_file location of
+      Nothing   -> []
+      Just src  -> [FileOption "--hssrc=" src]
+    )
 
 hscInteractive :: HscEnv
                -> CgGuts
