@@ -93,6 +93,7 @@ import GHC.Runtime.Interpreter ( addSptEntry )
 import GHCi.RemoteTypes        ( ForeignHValue )
 import GHC.CoreToByteCode      ( byteCodeGen, coreExprToBCOs )
 import GHC.Runtime.Linker
+import GHC.Core.Ppr            ( pprCoreBindings )
 import GHC.Core.Tidy           ( tidyExpr )
 import GHC.Core.Type           ( Type, Kind )
 import GHC.Core.Lint           ( lintInteractiveExpr )
@@ -1462,11 +1463,12 @@ hscGenHardCode hsc_env cgguts location output_filename = do
                   foreign_stubs foreign_files dependencies rawcmms1
             -- save stgbin
             unless (gopt Opt_NoStgbin dflags) $ do
-              outputModPak this_mod stg_binds foreign_stubs0 foreign_files location dflags output_filename
+              outputModPak this_mod core_binds stg_binds foreign_stubs0 foreign_files location dflags output_filename
             return (output_filename, stub_c_exists, foreign_fps, caf_infos)
 
 outputModPak
   :: Module
+  -> CoreProgram
   -> [StgTopBinding]
   -> ForeignStubs
   -> [(ForeignSrcLang, FilePath)]
@@ -1474,15 +1476,16 @@ outputModPak
   -> DynFlags
   -> FilePath
   -> IO ()
-outputModPak this_mod stg_binds foreign_stubs0 foreign_files location dflags output_filename = do
+outputModPak this_mod core_binds stg_binds foreign_stubs0 foreign_files location dflags output_filename = do
   --- load modules haskell source code ---
   hsSource <- sequence (BS.readFile <$> ml_hs_file location)
 
   --- save stg ---
-  let stgBin      = encode (Stg.cvtModule "stg" modUnitId modName stg_binds foreign_stubs0 foreign_files)
+  let stgBin      = encode (Stg.cvtModule "stg" modUnitId modName mSrcPath stg_binds foreign_stubs0 foreign_files)
       modpak_output = replaceExtension (ml_hi_file location) (objectSuf dflags ++ "_modpak")
       modName     = moduleName this_mod
       modUnitId   = moduleUnitId this_mod
+      mSrcPath    = ml_hs_file location
 
   -- stgbin
   stgbinFile <- newTempName dflags TFL_CurrentModule (objectSuf dflags ++ "_stgbin")
@@ -1492,12 +1495,17 @@ outputModPak this_mod stg_binds foreign_stubs0 foreign_files location dflags out
   ghcstgFile <- newTempName dflags TFL_CurrentModule (objectSuf dflags ++ "_ghcstg")
   BSL.writeFile ghcstgFile . BSL8.pack $ showSDoc dflags $ pprStgTopBindings stg_binds
 
+  -- ghc core pretty printed code
+  ghccoreFile <- newTempName dflags TFL_CurrentModule (objectSuf dflags ++ "_ghccore")
+  BSL.writeFile ghccoreFile . BSL8.pack $ showSDoc dflags $ pprCoreBindings core_binds
+
   runSomething dflags "create .modpak" "mkmodpak" $
     [ FileOption "--modpakname=" modpak_output
     , FileOption "--stgbin=" stgbinFile
     , FileOption "--ghcstg=" ghcstgFile
+    , FileOption "--ghccore=" ghccoreFile
     ] ++
-    (case ml_hs_file location of
+    (case mSrcPath of
       Nothing   -> []
       Just src  -> [FileOption "--hssrc=" src]
     )

@@ -22,12 +22,13 @@ import GHC.Prelude
 import GHC.Core
 import GHC.Core.Stats (exprStats)
 import GHC.Types.Literal( pprLiteral )
-import GHC.Types.Name( pprInfixName, pprPrefixName )
+import GHC.Types.Name( pprInfixName, pprPrefixName, getSrcSpan )
 import GHC.Types.Var
 import GHC.Types.Id
 import GHC.Types.Id.Info
 import GHC.Types.Demand
 import GHC.Types.Cpr
+import GHC.Types.SrcLoc
 import GHC.Core.DataCon
 import GHC.Core.TyCon
 import GHC.Core.TyCo.Ppr
@@ -371,7 +372,9 @@ pprCoreBinder :: BindingSite -> Var -> SDoc
 pprCoreBinder LetBind binder
   | isTyVar binder = pprKindedTyVarBndr binder
   | otherwise      = pprTypedLetBinder binder $$
+                     hcat [ text "src<", ppr srcSpan, char '>'] $$
                      ppIdInfo binder (idInfo binder)
+ where srcSpan = getSrcSpan binder
 
 -- Lambda bound type variables are preceded by "@"
 pprCoreBinder bind_site bndr
@@ -467,6 +470,7 @@ instance Outputable IdInfo where
     , (has_called_arity, text "CallArity=" <> int called_arity)
     , (has_caf_info,     text "Caf=" <> ppr caf_info)
     , (has_str_info,     text "Str=" <> pprStrictness str_info)
+    , (has_cpr_info,     text "Cpr=" <> ppr cpr_info)
     , (has_unf,          text "Unf=" <> ppr unf_info)
     , (has_rules,        text "RULES:" <+> vcat (map pprRule rules))
     ]
@@ -494,6 +498,9 @@ instance Outputable IdInfo where
 
       str_info = strictnessInfo info
       has_str_info = not (isTopSig str_info)
+
+      cpr_info = cprInfo info
+      has_cpr_info = cpr_info /= topCprSig
 
       unf_info = unfoldingInfo info
       has_unf = hasSomeUnfolding unf_info
