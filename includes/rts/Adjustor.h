@@ -17,6 +17,7 @@
 void* createAdjustor (int cconv, 
                       StgStablePtr hptr,
                       StgFunPtr wptr,
-                      char *typeString);
+                      char *typeString,
+                      char *hsTypeString);
 
 void freeHaskellFunctionPtr (void* ptr);

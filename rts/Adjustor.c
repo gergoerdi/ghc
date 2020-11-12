@@ -133,7 +133,8 @@ void*
 createAdjustor (int cconv, 
                 StgStablePtr hptr,
                 StgFunPtr wptr,
-                char *typeString)
+                char *typeString,
+                char *hsTypeString)
 {
     ffi_cif *cif;
     ffi_type **arg_types;
@@ -350,7 +351,8 @@ static int totalArgumentSize(char *typeString)
 void*
 createAdjustor(int cconv, StgStablePtr hptr,
                StgFunPtr wptr,
-               char *typeString
+               char *typeString,
+               char *hsTypeString
 #if !defined(powerpc_HOST_ARCH) && !defined(powerpc64_HOST_ARCH) && !defined(x86_64_HOST_ARCH)
                   STG_UNUSED
 #endif
@@ -358,6 +360,8 @@ createAdjustor(int cconv, StgStablePtr hptr,
 {
   void *adjustor = NULL;
   void *code = NULL;
+  // GHC-WPC always includes the return type in typeString, so it need to be ignored
+  typeString++;
 
   switch (cconv)
   {
