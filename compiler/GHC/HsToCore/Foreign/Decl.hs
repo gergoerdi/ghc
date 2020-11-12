@@ -112,7 +112,7 @@ dsForeigns' fos = do
                           , fd_e_ext = co
                           , fd_fe = CExport
                               (L _ (CExportStatic _ ext_nm cconv)) _ }) = do
-      (h, c, _, _) <- dsFExport id co ext_nm cconv False
+      (h, c, _, _, _) <- dsFExport id co ext_nm cconv False
       return (h, c, [id], [])
 
 {-
@@ -352,6 +352,7 @@ dsFExport :: Id                 -- Either the exported Id,
           -> DsM ( SDoc         -- contents of Module_stub.h
                  , SDoc         -- contents of Module_stub.c
                  , String       -- string describing type to pass to createAdj.
+                 , String       -- string describing haskell type to pass to createAdj.
                  , Int          -- size of args to stub function
                  )
 
@@ -436,7 +437,7 @@ dsFExportDynamic id co0 cconv = do
         export_ty     = mkVisFunTy stable_ptr_ty arg_ty
     bindIOId <- dsLookupGlobalId bindIOName
     stbl_value <- newSysLocalDs stable_ptr_ty
-    (h_code, c_code, typestring, args_size) <- dsFExport id (mkRepReflCo export_ty) fe_nm cconv True
+    (h_code, c_code, typestring, hs_typestring, args_size) <- dsFExport id (mkRepReflCo export_ty) fe_nm cconv True
     let
          {-
           The arguments to the external function which will
@@ -449,6 +450,7 @@ dsFExportDynamic id co0 cconv = do
                         , Var stbl_value
                         , Lit (LitLabel fe_nm mb_sz_args IsFunction)
                         , Lit (mkLitString typestring)
+                        , Lit (mkLitString hs_typestring)
                         ]
           -- name of external entry point providing these services.
           -- (probably in the RTS.)
@@ -512,10 +514,11 @@ mkFExportCBits :: DynFlags
                -> (SDoc,
                    SDoc,
                    String,      -- the argument reps
+                   String,      -- the haskell type descriptor for the result and args
                    Int          -- total size of arguments
                   )
 mkFExportCBits dflags c_nm maybe_target arg_htys res_hty is_IO_res_ty cc
- = (header_bits, c_bits, type_string,
+ = (header_bits, c_bits, type_string, hs_type_string,
     sum [ widthInBytes (typeWidth rep) | (_,_,_,rep) <- aug_arg_info] -- all the args
          -- NB. the calculation here isn't strictly speaking correct.
          -- We have a primitive Haskell type (eg. Int#, Double#), and
@@ -548,13 +551,16 @@ mkFExportCBits dflags c_nm maybe_target arg_htys res_hty is_IO_res_ty cc
   -- generate a libffi-style stub if this is a "wrapper" and libffi is enabled
   libffi = platformMisc_libFFI (platformMisc dflags) && isNothing maybe_target
 
-  type_string
-      -- libffi needs to know the result type too:
-      | libffi    = primTyDescChar platform res_hty : arg_type_string
-      | otherwise = arg_type_string
+  -- NOTE: GHC-WPC always exports the return type also, it is needed by the external STG interperer (libffi)
+  --       the RTS non libffi version of createAdjustor function is adjusted to ignore the return type
+  type_string     = primTyDescChar platform res_hty : arg_type_string
 
   arg_type_string = [primTyDescChar platform ty | (_,_,ty,_) <- arg_info]
                 -- just the real args
+
+  -- NOTE: GHC-WPC also exports a type string to describe the Haskell types, it is needed in the external STG interpreter
+  hs_type_string  = effect_char : (map hsTyDescChar $ res_hty : arg_htys)
+  effect_char     = if is_IO_res_ty then 'e' else 'p' -- HINT: effectful or pure
 
   -- add some auxiliary args; the stable ptr in the wrapper case, and
   -- a slot for the dummy return address in the wrapper + ccall case
@@ -820,3 +826,27 @@ primTyDescChar platform ty
     (signed_word, unsigned_word) = case platformWordSize platform of
       PW4 -> ('W','w')
       PW8 -> ('L','l')
+
+hsTyDescChar :: Type -> Char
+hsTyDescChar ty
+  | ty `eqType` unitTy = 'v'
+  | otherwise = case showFFIType ty of
+      "Char"      -> 'c'
+      "Int"       -> 'I'
+      "Int8"      -> 'X'
+      "Int16"     -> 'Y'
+      "Int32"     -> 'Z'
+      "Int64"     -> 'W'
+      "Word"      -> 'i'
+      "Word8"     -> 'x'
+      "Word16"    -> 'y'
+      "Word32"    -> 'z'
+      "Word64"    -> 'w'
+      "Ptr"       -> 'p'
+      "FunPtr"    -> '*'
+      "Float"     -> 'f'
+      "Double"    -> 'd'
+      "StablePtr" -> 'P'
+      "Bool"      -> 'b'
+      "String"    -> 's'
+      _other -> pprPanic "GHC.HsToCore.Foreign.Decl.hsTyDescChar" (ppr ty)
