@@ -87,20 +87,20 @@ writeStgLib context@Context{..} archivePath = do
 
   -- stubs archive
   oStubs <- filterM doesFileExist [base ++ "_stub" ++ ext | m <- hsObjs, let (base, ext) = splitExtension m]
-  let stubsArchivePath = archivePath -<.> "stubs.a"
+  let stubsArchivePath = archivePath -<.> (osuf way ++ "_stubs.a")
   removeFile stubsArchivePath
   unless (null oStubs) $ do
     build $ target context (Ar Pack stage) oStubs [stubsArchivePath]
 
   -- cbits archive
-  let cbitsArchivePath = archivePath -<.> "cbits.a"
+  let cbitsArchivePath = archivePath -<.> (osuf way ++ "_cbits.a")
   removeFile cbitsArchivePath
   unless (null cObjs) $ do
     build $ target context (Ar Pack stage) cObjs [cbitsArchivePath]
 
   -- stglib metadata
   liftIO $ do
-    writeFile (archivePath -<.> "stglib") stglib
+    writeFile (archivePath -<.> (osuf way ++ "_stglib")) stglib
 
 
 -- | Build a static library ('LibA') under the given build root, whose path is
@@ -151,6 +151,11 @@ buildDynamicLibUnix root suffix dynlibpath = do
     registerPackages deps
     objs <- libraryObjects context
     build $ target context (Ghc LinkHs $ Context.stage context) objs [dynlibpath]
+    -- stglib export
+    let BuildPath _ stage _ _ = dynlib
+    when (stage > Stage0) $ do
+      writeStgLib context dynlibpath
+
 
 -- | Build a "GHCi library" ('LibGhci') under the given build root, with the
 -- complete path of the file to build is given as the second argument.
