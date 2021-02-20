@@ -856,6 +856,14 @@ def test(name: TestName,
     if not re.match('^[0-9]*[a-zA-Z][a-zA-Z0-9._-]*$', name):
         framework_fail(name, None, 'This test has an invalid name')
 
+    # NOTE: ExtStg special!, run only the 'compile_and_run' like tests
+    if func not in [compile_and_run, multi_compile_and_run, multimod_compile_and_run]:
+      return
+    if args != ['']:
+      return
+    #if setup not in [normal]:
+    #  return
+
     if config.run_only_some_tests:
         if name not in config.only:
             return
