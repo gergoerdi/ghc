@@ -171,6 +171,7 @@ import Data.IORef
 import System.FilePath as FilePath
 import System.Directory
 import System.IO (fixIO)
+import qualified System.IO as IO
 import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.Set (Set)
@@ -1451,9 +1452,24 @@ hscGenHardCode hsc_env cgguts location output_filename = do
                       lookupHook cmmToRawCmmHook
                         (\dflg _ -> cmmToRawCmm dflg) dflags dflags (Just this_mod) cmms
 
+            -- GHC-WPC cmm dump
+            cmmFile <- newTempName dflags TFL_CurrentModule (objectSuf dflags ++ "_cmm")
+            cmmHandle <- IO.openFile cmmFile IO.WriteMode
+            -- name pretty printer setup
+            let qualifyImportedNames mod _
+                  | mod == this_mod = NameUnqual
+                  | otherwise       = NameNotInScope1
+                print_unqual = QueryQualify qualifyImportedNames
+                                            neverQualifyModules
+                                            neverQualifyPackages
+                dumpStyle = mkDumpStyle dflags print_unqual
+            -------------------
+
             let dump a = do
-                  unless (null a) $
+                  unless (null a) $ do
                     dumpIfSet_dyn dflags Opt_D_dump_cmm_raw "Raw Cmm" FormatCMM (ppr a)
+                    unless (gopt Opt_NoStgbin dflags) $ do
+                      IO.hPutStr cmmHandle $ showSDoc dflags $ withPprStyle dumpStyle $ ppr a
                   return a
                 rawcmms1 = Stream.mapM dump rawcmms0
 
@@ -1461,9 +1477,11 @@ hscGenHardCode hsc_env cgguts location output_filename = do
                 <- {-# SCC "codeOutput" #-}
                   codeOutput dflags this_mod output_filename location
                   foreign_stubs foreign_files dependencies rawcmms1
+
+            IO.hClose cmmHandle
             -- save stgbin
             unless (gopt Opt_NoStgbin dflags) $ do
-              outputModPak this_mod core_binds stg_binds foreign_stubs0 foreign_files location dflags output_filename
+              outputModPak this_mod core_binds stg_binds foreign_stubs0 foreign_files location dflags output_filename cmmFile
             return (output_filename, stub_c_exists, foreign_fps, caf_infos)
 
 outputModPak
@@ -1475,8 +1493,9 @@ outputModPak
   -> ModLocation
   -> DynFlags
   -> FilePath
+  -> FilePath
   -> IO ()
-outputModPak this_mod core_binds stg_binds foreign_stubs0 foreign_files location dflags output_filename = do
+outputModPak this_mod core_binds stg_binds foreign_stubs0 foreign_files location dflags output_filename cmm_filename = do
   --- load modules haskell source code ---
   hsSource <- sequence (BS.readFile <$> ml_hs_file location)
 
@@ -1491,19 +1510,30 @@ outputModPak this_mod core_binds stg_binds foreign_stubs0 foreign_files location
   stgbinFile <- newTempName dflags TFL_CurrentModule (objectSuf dflags ++ "_stgbin")
   BSL.writeFile stgbinFile stgBin
 
+  -- name pretty printer setup
+  let qualifyImportedNames mod _
+        | mod == this_mod = NameUnqual
+        | otherwise       = NameNotInScope1
+      print_unqual = QueryQualify qualifyImportedNames
+                                  neverQualifyModules
+                                  neverQualifyPackages
+      dumpStyle = mkDumpStyle dflags print_unqual
+
   -- ghc stg pretty printed code
   ghcstgFile <- newTempName dflags TFL_CurrentModule (objectSuf dflags ++ "_ghcstg")
-  BSL.writeFile ghcstgFile . BSL8.pack $ showSDoc dflags $ pprStgTopBindings stg_binds
+  BSL.writeFile ghcstgFile . BSL8.pack $ showSDoc dflags $ withPprStyle dumpStyle $ pprStgTopBindings stg_binds
 
   -- ghc core pretty printed code
   ghccoreFile <- newTempName dflags TFL_CurrentModule (objectSuf dflags ++ "_ghccore")
-  BSL.writeFile ghccoreFile . BSL8.pack $ showSDoc dflags $ pprCoreBindings core_binds
+  BSL.writeFile ghccoreFile . BSL8.pack $ showSDoc dflags $ withPprStyle dumpStyle $ pprCoreBindings core_binds
 
   runSomething dflags "create .modpak" "mkmodpak" $
     [ FileOption "--modpakname=" modpak_output
     , FileOption "--stgbin=" stgbinFile
     , FileOption "--ghcstg=" ghcstgFile
     , FileOption "--ghccore=" ghccoreFile
+    , FileOption "--cmm=" cmm_filename
+    , FileOption "--asm=" output_filename
     ] ++
     (case mSrcPath of
       Nothing   -> []
