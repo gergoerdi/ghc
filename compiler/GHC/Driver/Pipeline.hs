@@ -1859,7 +1859,7 @@ linkBinary' staticLink dflags o_files dep_packages = do
       pkgConfRefs <- getPackageConfRefs dflags
       pkgConfPath <- catMaybes <$> mapM (resolvePackageDatabase dflags) pkgConfRefs
       let ppSection l = unlines ["- " ++ x | x <- nubOrd $ map show l]
-      writeFile (output_fn -<.> ".ghc_stgapp") $ unlines
+      writeFile (output_fn -<.> (objectSuf dflags ++ "_ghc_stgapp")) $ unlines
         [ "root:"               , ppSection [root]
         , "package_hs_libs:"    , ppSection package_hs_libs
         , "extra_libs:"         , ppSection extra_libs
@@ -1871,6 +1871,9 @@ linkBinary' staticLink dflags o_files dep_packages = do
         , "pkg_db_paths:"       , ppSection pkgConfPath
         , "pkg_include_paths:"  , ppSection pkgIncludePaths
         , "ld_command_opts:"    , ppSection $ map showOpt linkOpts
+        , "o_suffix:"           , ppSection [objectSuf dflags]
+        , "no_hs_main:"         , ppSection [show $ gopt Opt_NoHsMain dflags]
+        , "ways:"               , ppSection $ ways dflags
         ]
 
 
