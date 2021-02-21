@@ -859,10 +859,6 @@ def test(name: TestName,
     # NOTE: ExtStg special!, run only the 'compile_and_run' like tests
     if func not in [compile_and_run, multi_compile_and_run, multimod_compile_and_run]:
       return
-    if args != ['']:
-      return
-    #if setup not in [normal]:
-    #  return
 
     if config.run_only_some_tests:
         if name not in config.only:
@@ -1597,6 +1593,11 @@ def simple_run(name: TestName, way: WayName, prog: str, extra_run_opts: str) -> 
         stdin_arg = in_testdir(name, 'stdin')
     else:
         stdin_arg = None
+
+    if stdin_arg and stdin_arg.is_file():
+      in_testdir(name, 'run.stdin').write_bytes(stdin_arg.read_bytes())
+    if extra_run_opts:
+      in_testdir(name, 'run.args').write_text(extra_run_opts)
 
     stdout_arg = in_testdir(name, 'run.stdout')
     if opts.combined_output:
