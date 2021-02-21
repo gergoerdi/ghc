@@ -82,6 +82,7 @@ import Data.Containers.ListUtils (nubOrd)
 import Data.Maybe
 import Data.Version
 import Data.Either      ( partitionEithers )
+import qualified Data.Set as Set
 
 import Data.Time        ( UTCTime )
 
@@ -1873,7 +1874,7 @@ linkBinary' staticLink dflags o_files dep_packages = do
         , "ld_command_opts:"    , ppSection $ map showOpt linkOpts
         , "o_suffix:"           , ppSection [objectSuf dflags]
         , "no_hs_main:"         , ppSection [show $ gopt Opt_NoHsMain dflags]
-        , "ways:"               , ppSection $ ways dflags
+        , "ways:"               , ppSection $ map show $ Set.toList $ ways dflags
         ]
 
 
