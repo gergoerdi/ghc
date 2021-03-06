@@ -392,6 +392,8 @@ pprTypedLamBinder bind_site debug_on var
   = sdocOption sdocSuppressTypeSignatures $ \suppress_sigs ->
     case () of
     _
+      {-
+      -- GHC-WPC: disable the following special cases to always print dead binders also, for debug purposes
       | not debug_on            -- Show case-bound wild binders only if debug is on
       , CaseBind <- bind_site
       , isDeadBinder var        -> empty
@@ -399,7 +401,7 @@ pprTypedLamBinder bind_site debug_on var
       | not debug_on            -- Even dead binders can be one-shot
       , isDeadBinder var        -> char '_' <+> ppWhen (isId var)
                                                 (pprIdBndrInfo (idInfo var))
-
+      -}
       | not debug_on            -- No parens, no kind info
       , CaseBind <- bind_site   -> pprUntypedBinder var
 
