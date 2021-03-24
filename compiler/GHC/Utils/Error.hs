@@ -781,7 +781,7 @@ withTiming' dflags what force_result prtimings action
             whenPrintTimings $ traceMarkerIO (eventEndsDoc ctx w)
             liftIO $ traceEventIO (eventEndsDoc ctx w)
 
-          eventBeginsDoc ctx w = showSDocOneLine ctx $ text "GHC:started:" <+> w
+          eventBeginsDoc ctx w = showSDocOneLine ctx $ text "GHC:started: " <+> w
           eventEndsDoc   ctx w = showSDocOneLine ctx $ text "GHC:finished:" <+> w
 
 debugTraceMsg :: DynFlags -> Int -> MsgDoc -> IO ()
