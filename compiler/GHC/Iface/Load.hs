@@ -87,6 +87,7 @@ import Data.IORef
 import Data.Map ( toList )
 import System.FilePath
 import System.Directory
+import Debug.Trace
 
 {-
 ************************************************************************
@@ -403,7 +404,7 @@ loadInterface doc_str mod from
        -- Redo search for our local hole module
        loadInterface doc_str (mkModule (thisPackage dflags) (moduleName mod)) from
   | otherwise
-  = withTimingSilentD (text "loading interface") (pure ()) $
+  = withTimingSilentD (text "loading interface" <+> ppr mod <+> ppr from) (pure ()) $
     do  {       -- Read the state
           (eps,hpt) <- getEpsAndHpt
         ; gbl_env <- getGblEnv
@@ -413,11 +414,14 @@ loadInterface doc_str mod from
                 -- Check whether we have the interface already
         ; dflags <- getDynFlags
         ; case lookupIfaceByModule hpt (eps_PIT eps) mod of {
-            Just iface
-                -> return (Succeeded iface) ;   -- Already loaded
+            Just iface -> do {
+                            let ctx = initDefaultSDocContext dflags
+                            ; liftIO (traceEventIO (showSDocOneLine ctx $ text "               cached interface" <+> ppr mod <+> ppr from))
+                            ; return (Succeeded iface) ; -- Already loaded
                         -- The (src_imp == mi_boot iface) test checks that the already-loaded
                         -- interface isn't a boot iface.  This can conceivably happen,
                         -- if an earlier import had a before we got to real imports.   I think.
+                            };
             _ -> do {
 
         -- READ THE MODULE IN
