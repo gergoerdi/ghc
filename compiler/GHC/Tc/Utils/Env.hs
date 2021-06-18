@@ -82,6 +82,7 @@ import GHC.Iface.Load
 import GHC.Builtin.Names
 import GHC.Builtin.Types
 import GHC.Types.Id
+import GHC.Types.Id.Info( IdDetails(..) )
 import GHC.Types.Var
 import GHC.Types.Name.Reader
 import GHC.Core.InstEnv
@@ -1009,7 +1010,7 @@ mkStableIdFromString str sig_ty loc occ_wrapper = do
     name <- mkWrapperName "stable" str
     let occ = mkVarOccFS name :: OccName
         gnm = mkExternalName uniq mod (occ_wrapper occ) loc :: Name
-        id  = mkExportedVanillaId gnm sig_ty :: Id
+        id  = mkExportedLocalId FExportedId gnm sig_ty :: Id
     return id
 
 mkStableIdFromName :: Name -> Type -> SrcSpan -> (OccName -> OccName) -> TcM TcId

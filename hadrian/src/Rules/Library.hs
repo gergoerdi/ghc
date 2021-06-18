@@ -45,6 +45,64 @@ registerStaticLib root archivePath = do
                 -/- (pkgId name version) ++ ".conf"
          ]
 
+writeStgLib :: Context -> FilePath -> Action ()
+writeStgLib context@Context{..} archivePath = do
+  ContextData{..} <- interpretInContext context (getContextData id)
+  let stgExtension = osuf way ++ "_stgbin"
+      objExtension = osuf way
+
+  nonHsObjs <- nonHsObjects context
+  hsObjs <- hsObjects context
+  let cLikeFiles  = asmSrcs ++ cSrcs ++ cmmSrcs
+      cObjs       = nonHsObjs
+      hStgbins    = [m -<.> stgExtension | m <- hsObjs]
+
+  let ppSection l = unlines ["- " ++ show x | x <- l]
+      stglib = unlines
+        -- non HS objects
+        [ "cObjs:"        , ppSection cObjs
+        , "cLikeFiles:"   , ppSection cLikeFiles
+        , "asmSources:"   , ppSection asmSrcs
+        , "asmOptions:"   , ppSection asmOpts
+        , "cmmSources:"   , ppSection cmmSrcs
+        , "cmmOptions:"   , ppSection cmmOpts
+        , "cSources:"     , ppSection cSrcs
+        , "ccOptions:"    , ppSection ccOpts
+        , "cxxSources:"   , ""
+        , "cxxOptions:"   , ""
+        -- exta libs / non HS dependencies
+        , "extraLibs:"    , ppSection extraLibs
+        , "extraLibDirs:" , ppSection extraLibDirs
+        -- ld options
+        , "ldOptions:"    , ppSection ldOpts
+        -- HS dependencies
+        , "componentPackageDeps:" , ppSection dependencies
+        -- HS object origins
+        , "hStgbins:"     , ppSection hStgbins
+        -- HS modules
+        , "modules:"      , ppSection $ modules -- HINT: contains the other modules also
+        ]
+
+  -- NOTE: archivePath is already contains the _p suffix in profile mode
+
+  -- stubs archive
+  oStubs <- filterM doesFileExist [base ++ "_stub" ++ ext | m <- hsObjs, let (base, ext) = splitExtension m]
+  let stubsArchivePath = archivePath -<.> "stubs.a"
+  removeFile stubsArchivePath
+  unless (null oStubs) $ do
+    build $ target context (Ar Pack stage) oStubs [stubsArchivePath]
+
+  -- cbits archive
+  let cbitsArchivePath = archivePath -<.> "cbits.a"
+  removeFile cbitsArchivePath
+  unless (null cObjs) $ do
+    build $ target context (Ar Pack stage) cObjs [cbitsArchivePath]
+
+  -- stglib metadata
+  liftIO $ do
+    writeFile (archivePath -<.> "stglib") stglib
+
+
 -- | Build a static library ('LibA') under the given build root, whose path is
 -- the second argument.
 buildStaticLib :: FilePath -> FilePath -> Action ()
@@ -55,6 +113,11 @@ buildStaticLib root archivePath = do
                      archivePath
     let context = libAContext l
     objs <- libraryObjects context
+
+    -- stglib export
+    when (stage > Stage0) $ do
+      writeStgLib context archivePath
+
     removeFile archivePath
     build $ target context (Ar Pack stage) objs [archivePath]
     synopsis <- pkgSynopsis (package context)

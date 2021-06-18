@@ -61,7 +61,7 @@ import Data.List     ( partition )
 
 cgExpr  :: CgStgExpr -> FCode ReturnKind
 
-cgExpr (StgApp fun args)     = cgIdApp fun args
+cgExpr (StgApp fun args _)   = cgIdApp fun args
 
 -- seq# a s ==> a
 -- See Note [seq# magic] in GHC.Core.Opt.ConstantFold
@@ -341,7 +341,7 @@ exist, perhaps because the occurrence information preserved by
 job we deleted the hacks.
 -}
 
-cgCase (StgApp v []) _ (PrimAlt _) alts
+cgCase (StgApp v [] _) _ (PrimAlt _) alts
   | isVoidRep (idPrimRep v)  -- See Note [Scrutinising VoidRep]
   , [(DEFAULT, _, rhs)] <- alts
   = cgExpr rhs
@@ -362,7 +362,7 @@ then we'll get a runtime panic, because the HValue really is a
 MutVar#.  The types are compatible though, so we can just generate an
 assignment.
 -}
-cgCase (StgApp v []) bndr alt_type@(PrimAlt _) alts
+cgCase (StgApp v [] _) bndr alt_type@(PrimAlt _) alts
   | isUnliftedType (idType v)  -- Note [Dodgy unsafeCoerce 1]
   = -- assignment suffices for unlifted types
     do { platform <- getPlatform
@@ -390,7 +390,7 @@ because bottom must be untagged, it will be entered.  The Sequel is a
 type-correct assignment, albeit bogus.  The (dead) continuation loops;
 it would be better to invoke some kind of panic function here.
 -}
-cgCase scrut@(StgApp v []) _ (PrimAlt _) _
+cgCase scrut@(StgApp v [] _) _ (PrimAlt _) _
   = do { platform <- getPlatform
        ; mb_cc <- maybeSaveCostCentre True
        ; _ <- withSequel
@@ -422,7 +422,7 @@ cgCase (StgOpApp (StgPrimOp SeqOp) [StgVarArg a, _] _) bndr alt_type alts
   = -- Note [Handle seq#]
     -- And see Note [seq# magic] in GHC.Core.Opt.ConstantFold
     -- Use the same return convention as vanilla 'a'.
-    cgCase (StgApp a []) bndr alt_type alts
+    cgCase (StgApp a [] (idType a, "SeqOp")) bndr alt_type alts
 
 cgCase scrut bndr alt_type alts
   = -- the general case
@@ -501,7 +501,7 @@ isSimpleScrut :: CgStgExpr -> AltType -> FCode Bool
 --     when it does, you'll deeply mess up allocation
 isSimpleScrut (StgOpApp op args _) _       = isSimpleOp op args
 isSimpleScrut (StgLit _)       _           = return True       -- case 1# of { 0# -> ..; ... }
-isSimpleScrut (StgApp _ [])    (PrimAlt _) = return True       -- case x# of { 0# -> ..; ... }
+isSimpleScrut (StgApp _ [] _)  (PrimAlt _) = return True       -- case x# of { 0# -> ..; ... }
 isSimpleScrut _                _           = return False
 
 isSimpleOp :: StgOp -> [StgArg] -> FCode Bool
