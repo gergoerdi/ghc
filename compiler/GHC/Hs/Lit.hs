@@ -5,6 +5,7 @@
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE UndecidableInstances #-} -- Wrinkle in Note [Trees That Grow]
                                       -- in module Language.Haskell.Syntax.Extension
+{-# LANGUAGE DuplicateRecordFields #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-} -- Outputable, OutputableBndrId
 
@@ -57,6 +58,12 @@ type instance XHsFloatPrim  (GhcPass _) = NoExtField
 type instance XHsDoublePrim (GhcPass _) = NoExtField
 type instance XXLit         (GhcPass _) = NoExtCon
 
+data OverLitRn
+  = OverLitRn {
+        ol_rebindable :: Bool  -- Note [ol_rebindable]
+        }
+  deriving Data
+
 data OverLitTc
   = OverLitTc {
         ol_rebindable :: Bool, -- Note [ol_rebindable]
@@ -64,7 +71,7 @@ data OverLitTc
   deriving Data
 
 type instance XOverLit GhcPs = NoExtField
-type instance XOverLit GhcRn = Bool            -- Note [ol_rebindable]
+type instance XOverLit GhcRn = OverLitRn
 type instance XOverLit GhcTc = OverLitTc
 
 type instance XXOverLit (GhcPass _) = NoExtCon

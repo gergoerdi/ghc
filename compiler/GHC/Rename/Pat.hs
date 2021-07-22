@@ -993,7 +993,7 @@ rnOverLit origLit
         ; (from_thing_name, fvs1) <- lookupSyntaxName std_name
         ; let rebindable = from_thing_name /= std_name
               lit' = lit { ol_witness = nl_HsVar from_thing_name
-                         , ol_ext = rebindable }
+                         , ol_ext = OverLitRn rebindable }
         ; if isNegativeZeroOverLit lit'
           then do { (negate_name, fvs2) <- lookupSyntaxExpr negateName
                   ; return ((lit' { ol_val = negateOverLitVal val }, Just negate_name)

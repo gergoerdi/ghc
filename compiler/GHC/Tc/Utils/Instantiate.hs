@@ -675,7 +675,7 @@ newNonTrivialOverloadedLit :: HsOverLit GhcRn
                            -> TcM (HsOverLit GhcTc)
 newNonTrivialOverloadedLit
   lit@(OverLit { ol_val = val, ol_witness = HsVar _ (L _ meth_name)
-               , ol_ext = rebindable }) res_ty
+               , ol_ext = OverLitRn rebindable }) res_ty
   = do  { hs_lit <- mkOverLit val
         ; let lit_ty = hsLitType hs_lit
         ; (_, fi') <- tcSyntaxOp orig (mkRnSyntaxExpr meth_name)

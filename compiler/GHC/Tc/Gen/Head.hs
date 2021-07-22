@@ -634,7 +634,7 @@ CLong, as it should.
 tcInferOverLit :: HsOverLit GhcRn -> TcM (HsExpr GhcTc, TcSigmaType)
 tcInferOverLit lit@(OverLit { ol_val = val
                             , ol_witness = HsVar _ (L loc from_name)
-                            , ol_ext = rebindable })
+                            , ol_ext = OverLitRn rebindable })
   = -- Desugar "3" to (fromInteger (3 :: Integer))
     --   where fromInteger is gotten by looking up from_name, and
     --   the (3 :: Integer) is returned by mkOverLit
