@@ -229,8 +229,7 @@ dsRational (n :% d) = do
 dsOverLit :: HsOverLit GhcTc -> DsM CoreExpr
 -- ^ Post-typechecker, the 'HsExpr' field of an 'OverLit' contains
 -- (an expression for) the literal value itself.
-dsOverLit (OverLit { ol_val = val, ol_ext = OverLitTc rebindable ty
-                   , ol_witness = witness }) = do
+dsOverLit (OverLit { ol_val = val, ol_ext = OverLitTc rebindable witness ty }) = do
   dflags <- getDynFlags
   let platform = targetPlatform dflags
   case shortCutLit platform val ty of
@@ -435,7 +434,7 @@ getLHsIntegralLit (L _ e) = go e
 -- | If 'Integral', extract the value and type of the overloaded literal.
 -- See Note [Literals and the OverloadedLists extension]
 getIntegralLit :: HsOverLit GhcTc -> Maybe (Integer, Type)
-getIntegralLit (OverLit { ol_val = HsIntegral i, ol_ext = OverLitTc _ ty })
+getIntegralLit (OverLit { ol_val = HsIntegral i, ol_ext = OverLitTc _ _ ty })
   = Just (il_value i, ty)
 getIntegralLit _ = Nothing
 
@@ -518,7 +517,7 @@ tidyLitPat lit = LitPat noExtField lit
 tidyNPat :: HsOverLit GhcTc -> Maybe (SyntaxExpr GhcTc) -> SyntaxExpr GhcTc
          -> Type
          -> Pat GhcTc
-tidyNPat (OverLit (OverLitTc False ty) val _) mb_neg _eq outer_ty
+tidyNPat (OverLit (OverLitTc False _ ty) val) mb_neg _eq outer_ty
         -- False: Take short cuts only if the literal is not using rebindable syntax
         --
         -- Once that is settled, look for cases where the type of the

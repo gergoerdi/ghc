@@ -20,7 +20,6 @@ module Language.Haskell.Syntax.Lit where
 
 import GHC.Prelude
 
-import {-# SOURCE #-} Language.Haskell.Syntax.Expr ( HsExpr )
 import GHC.Types.Basic (PprPrec(..), topPrec )
 import GHC.Types.SourceText
 import GHC.Core.Type
@@ -100,8 +99,7 @@ instance Eq (HsLit x) where
 data HsOverLit p
   = OverLit {
       ol_ext :: (XOverLit p),
-      ol_val :: OverLitVal,
-      ol_witness :: HsExpr p}         -- Note [Overloaded literal witnesses]
+      ol_val :: OverLitVal}
 
   | XOverLit
       !(XXOverLit p)
@@ -140,8 +138,8 @@ found to have.
 -- Comparison operations are needed when grouping literals
 -- for compiling pattern-matching (module GHC.HsToCore.Match.Literal)
 instance (Eq (XXOverLit p)) => Eq (HsOverLit p) where
-  (OverLit _ val1 _) == (OverLit _ val2 _) = val1 == val2
-  (XOverLit  val1)   == (XOverLit  val2)   = val1 == val2
+  (OverLit _ val1) == (OverLit _ val2) = val1 == val2
+  (XOverLit  val1) == (XOverLit  val2) = val1 == val2
   _ == _ = panic "Eq HsOverLit"
 
 instance Eq OverLitVal where
@@ -151,8 +149,8 @@ instance Eq OverLitVal where
   _                   == _                   = False
 
 instance (Ord (XXOverLit p)) => Ord (HsOverLit p) where
-  compare (OverLit _ val1 _) (OverLit _ val2 _) = val1 `compare` val2
-  compare (XOverLit  val1)   (XOverLit  val2)   = val1 `compare` val2
+  compare (OverLit _ val1)  (OverLit _ val2) = val1 `compare` val2
+  compare (XOverLit  val1)  (XOverLit  val2) = val1 `compare` val2
   compare _ _ = panic "Ord HsOverLit"
 
 instance Ord OverLitVal where
