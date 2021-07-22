@@ -193,7 +193,7 @@ desugarPat x pat = case pat of
     dflags <- getDynFlags
     let platform = targetPlatform dflags
     pm_lit <- case olit of
-      OverLit{ ol_val = val, ol_ext = OverLitTc rebindable _ }
+      OverLit{ ol_val = val, ol_ext = OverLitTc rebindable _ _ }
         | not rebindable
         , Just expr <- shortCutLit platform val ty
         -> coreExprAsPmLit <$> dsExpr expr

@@ -5,6 +5,8 @@
 {-# LANGUAGE TypeFamilies         #-}
 {-# LANGUAGE UndecidableInstances #-} -- Wrinkle in Note [Trees That Grow]
                                       -- in module Language.Haskell.Syntax.Extension
+{-# LANGUAGE DuplicateRecordFields #-}
+{-# LANGUAGE TypeApplications #-}
 
 {-# OPTIONS_GHC -Wno-orphans #-} -- Outputable, OutputableBndrId
 
@@ -29,10 +31,9 @@ import Language.Haskell.Syntax.Lit
 import GHC.Types.SourceText
 import GHC.Core.Type
 import GHC.Utils.Outputable
+import Language.Haskell.Syntax.Expr ( HsExpr )
 import Language.Haskell.Syntax.Extension
 import GHC.Hs.Extension
-
-import Data.Data hiding ( Fixity )
 
 {-
 ************************************************************************
@@ -57,20 +58,53 @@ type instance XHsFloatPrim  (GhcPass _) = NoExtField
 type instance XHsDoublePrim (GhcPass _) = NoExtField
 type instance XXLit         (GhcPass _) = NoExtCon
 
+data OverLitRn
+  = OverLitRn {
+        ol_rebindable :: Bool,         -- Note [ol_rebindable]
+        ol_coercion   :: LIdP GhcRn    -- Note [Overloaded literal witnesses]
+        }
+
 data OverLitTc
   = OverLitTc {
-        ol_rebindable :: Bool, -- Note [ol_rebindable]
+        ol_rebindable :: Bool,         -- Note [ol_rebindable]
+        ol_witness    :: HsExpr GhcTc, -- Note [Overloaded literal witnesses]
         ol_type :: Type }
-  deriving Data
+
+{-
+Note [Overloaded literal witnesses]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+During renaming, the coercion function needed for a given HsOverLit is
+resolved according to the current scope and RebindableSyntax (see Note
+[ol_rebindable]). The result of this resolution *before* type checking
+is the coercion function such as 'fromInteger' or 'fromRational',
+stored in the ol_coercion field of OverLitRn.
+
+*After* type checking, the ol_witness field of the OverLitTc
+contains the witness of the literal as HsExpr, such as (fromInteger 3)
+or lit_78. This witness should replace the literal.
+
+This dual role is unusual, because we're replacing 'fromInteger' with
+a call to fromInteger.  Reason: it allows commoning up of the fromInteger
+calls, which wouldn't be possible if the desugarer made the application.
+
+The PostTcType in each branch records the type the overload literal is
+found to have.
+-}
 
 type instance XOverLit GhcPs = NoExtField
-type instance XOverLit GhcRn = Bool            -- Note [ol_rebindable]
+type instance XOverLit GhcRn = OverLitRn
 type instance XOverLit GhcTc = OverLitTc
+
+pprXOverLit :: GhcPass p -> XOverLit (GhcPass p) -> SDoc
+pprXOverLit GhcPs noExt = ppr noExt
+pprXOverLit GhcRn OverLitRn{ ol_coercion = coercion } = ppr coercion
+pprXOverLit GhcTc OverLitTc{ ol_witness = witness } = pprExpr witness
 
 type instance XXOverLit (GhcPass _) = NoExtCon
 
 overLitType :: HsOverLit GhcTc -> Type
-overLitType (OverLit (OverLitTc _ ty) _ _) = ty
+overLitType (OverLit OverLitTc{ ol_type = ty } _) = ty
 
 -- | Convert a literal from one index type to another
 convertLit :: HsLit (GhcPass p1) -> HsLit (GhcPass p2)
@@ -94,8 +128,8 @@ Note [ol_rebindable]
 The ol_rebindable field is True if this literal is actually
 using rebindable syntax.  Specifically:
 
-  False iff ol_witness is the standard one
-  True  iff ol_witness is non-standard
+  False iff ol_coercion / ol_witness is the standard one
+  True  iff ol_coercion / ol_witness is non-standard
 
 Equivalently it's True if
   a) RebindableSyntax is on
@@ -125,10 +159,10 @@ pp_st_suffix NoSourceText         _ doc = doc
 pp_st_suffix (SourceText st) suffix _   = text st <> suffix
 
 -- in debug mode, print the expression that it's resolved to, too
-instance OutputableBndrId p
+instance (OutputableBndrId p)
        => Outputable (HsOverLit (GhcPass p)) where
-  ppr (OverLit {ol_val=val, ol_witness=witness})
-        = ppr val <+> (whenPprDebug (parens (pprExpr witness)))
+  ppr (OverLit {ol_val=val, ol_ext=ext})
+        = ppr val <+> (whenPprDebug (parens (pprXOverLit (ghcPass @p) ext)))
 
 -- | pmPprHsLit pretty prints literals and is used when pretty printing pattern
 -- match warnings. All are printed the same (i.e., without hashes if they are
