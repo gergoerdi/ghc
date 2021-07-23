@@ -118,23 +118,6 @@ negateOverLitVal (HsIntegral i) = HsIntegral (negateIntegralLit i)
 negateOverLitVal (HsFractional f) = HsFractional (negateFractionalLit f)
 negateOverLitVal _ = panic "negateOverLitVal: argument is not a number"
 
-{-
-Note [Overloaded literal witnesses]
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-*Before* type checking, the HsExpr in an HsOverLit is the
-name of the coercion function, 'fromInteger' or 'fromRational'.
-*After* type checking, it is a witness for the literal, such as
-        (fromInteger 3) or lit_78
-This witness should replace the literal.
-
-This dual role is unusual, because we're replacing 'fromInteger' with
-a call to fromInteger.  Reason: it allows commoning up of the fromInteger
-calls, which wouldn't be possible if the desugarer made the application.
-
-The PostTcType in each branch records the type the overload literal is
-found to have.
--}
-
 -- Comparison operations are needed when grouping literals
 -- for compiling pattern-matching (module GHC.HsToCore.Match.Literal)
 instance (Eq (XXOverLit p)) => Eq (HsOverLit p) where

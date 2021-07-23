@@ -70,6 +70,28 @@ data OverLitTc
         ol_witness    :: HsExpr GhcTc, -- Note [Overloaded literal witnesses]
         ol_type :: Type }
 
+{-
+Note [Overloaded literal witnesses]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+During renaming, the coercion function needed for a given HsOverLit is
+resolved according to the current scope and RebindableSyntax (see Note
+[ol_rebindable]). The result of this resolution *before* type checking
+is the coercion function such as 'fromInteger' or 'fromRational',
+stored in the ol_coercion field of OverLitRn.
+
+*After* type checking, the ol_witness field of the OverLitTc
+contains the witness of the literal as HsExpr, such as (fromInteger 3)
+or lit_78. This witness should replace the literal.
+
+This dual role is unusual, because we're replacing 'fromInteger' with
+a call to fromInteger.  Reason: it allows commoning up of the fromInteger
+calls, which wouldn't be possible if the desugarer made the application.
+
+The PostTcType in each branch records the type the overload literal is
+found to have.
+-}
+
 type instance XOverLit GhcPs = NoExtField
 type instance XOverLit GhcRn = OverLitRn
 type instance XOverLit GhcTc = OverLitTc
