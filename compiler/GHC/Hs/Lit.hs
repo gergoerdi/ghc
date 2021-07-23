@@ -61,7 +61,7 @@ type instance XXLit         (GhcPass _) = NoExtCon
 data OverLitRn
   = OverLitRn {
         ol_rebindable :: Bool,         -- Note [ol_rebindable]
-        ol_coercion   :: HsExpr GhcRn  -- Note [Overloaded literal witnesses]
+        ol_coercion   :: LIdP GhcRn    -- Note [Overloaded literal witnesses]
         }
 
 data OverLitTc
@@ -98,7 +98,7 @@ type instance XOverLit GhcTc = OverLitTc
 
 pprXOverLit :: GhcPass p -> XOverLit (GhcPass p) -> SDoc
 pprXOverLit GhcPs noExt = ppr noExt
-pprXOverLit GhcRn OverLitRn{ ol_coercion = coercion } = pprExpr coercion
+pprXOverLit GhcRn OverLitRn{ ol_coercion = coercion } = ppr coercion
 pprXOverLit GhcTc OverLitTc{ ol_witness = witness } = pprExpr witness
 
 type instance XXOverLit (GhcPass _) = NoExtCon

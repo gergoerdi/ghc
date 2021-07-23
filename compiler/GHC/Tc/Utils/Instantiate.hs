@@ -674,7 +674,7 @@ newNonTrivialOverloadedLit :: HsOverLit GhcRn
                            -> ExpRhoType
                            -> TcM (HsOverLit GhcTc)
 newNonTrivialOverloadedLit
-  lit@(OverLit { ol_val = val, ol_ext = OverLitRn rebindable (HsVar _ (L _ meth_name)) })
+  lit@(OverLit { ol_val = val, ol_ext = OverLitRn rebindable (L _ meth_name) })
   res_ty
   = do  { hs_lit <- mkOverLit val
         ; let lit_ty = hsLitType hs_lit
@@ -686,9 +686,6 @@ newNonTrivialOverloadedLit
         ; return (lit { ol_ext = OverLitTc rebindable witness res_ty }) }
   where
     orig = LiteralOrigin lit
-
-newNonTrivialOverloadedLit lit _
-  = pprPanic "newNonTrivialOverloadedLit" (ppr lit)
 
 ------------
 mkOverLit ::OverLitVal -> TcM (HsLit GhcTc)
