@@ -3377,6 +3377,7 @@ fFlagsDeps = [
   flagSpec "catch-bottoms"                    Opt_CatchBottoms,
   flagSpec "alignment-sanitisation"           Opt_AlignmentSanitisation,
   flagSpec "num-constant-folding"             Opt_NumConstantFolding,
+  flagSpec "constant-folding"                 Opt_ConstantFolding,
   flagSpec "fast-pap-calls"                   Opt_FastPAPCalls,
   flagSpec "cmm-control-flow"                 Opt_CmmControlFlow,
   flagSpec "show-warning-groups"              Opt_ShowWarnGroups,
@@ -3845,6 +3846,8 @@ optLevelFlags -- see Note [Documenting optimisation flags]
 
     , ([0],     Opt_IgnoreInterfacePragmas)
     , ([0],     Opt_OmitInterfacePragmas)
+
+    , ([1,2],   Opt_ConstantFolding)
 
     , ([1,2],   Opt_CallArity)
     , ([1,2],   Opt_Exitification)
