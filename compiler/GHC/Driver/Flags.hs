@@ -228,6 +228,7 @@ data GeneralFlag
    | Opt_AlignmentSanitisation
    | Opt_CatchBottoms
    | Opt_NumConstantFolding
+   | Opt_ConstantFolding
    | Opt_FastPAPCalls                  -- #6084
 
    -- PreInlining is on by default. The option is there just to see how

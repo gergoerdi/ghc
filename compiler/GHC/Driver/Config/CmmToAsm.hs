@@ -34,7 +34,7 @@ initNCGConfig dflags this_mod = NCGConfig
 
      -- With -O1 and greater, the cmmSink pass does constant-folding, so
      -- we don't need to do it again in the native code generator.
-   , ncgDoConstantFolding     = optLevel dflags < 1
+   , ncgDoConstantFolding     = gopt Opt_ConstantFolding dflags
 
    , ncgDumpRegAllocStages    = dopt Opt_D_dump_asm_regalloc_stages dflags
    , ncgDumpAsmStats          = dopt Opt_D_dump_asm_stats dflags
